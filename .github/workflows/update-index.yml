@@ -1,0 +1,60 @@
+name: Update index
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - '.github/workflows/update-index.yml'
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate index.html
+        run: |
+          {
+            echo '<!doctype html>'
+            echo '<html lang="es">'
+            echo '<head>'
+            echo '  <meta charset="utf-8">'
+            echo '  <meta name="viewport" content="width=device-width,initial-scale=1">'
+            echo '  <title>Base de conocimiento</title>'
+            echo '</head>'
+            echo '<body>'
+            echo '  <h1>Base de conocimiento</h1>'
+            echo '  <p>Documentos disponibles:</p>'
+            echo '  <ul>'
+
+            files_found=0
+            while IFS= read -r -d '' file; do
+              rel="${file#./}"
+              name="$(basename "$file")"
+              echo "    <li><a href=\"$rel\">$name</a></li>"
+              files_found=1
+            done < <(find ./docs -type f \( -iname "*.pdf" -o -iname "*.docx" -o -iname "*.txt" -o -iname "*.md" -o -iname "*.html" \) -print0 | sort -z)
+
+            if [ "$files_found" -eq 0 ]; then
+              echo '    <li>No hay documentos todavía.</li>'
+            fi
+
+            echo '  </ul>'
+            echo '</body>'
+            echo '</html>'
+          } > index.html
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Actualizar index automáticamente"
+          git push
